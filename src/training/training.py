@@ -69,6 +69,7 @@ def train_model(
     epochs: int,
     experiment_name: str,
     checkpoint_dir: Path = Settings.PROJECT_PATH / "models",
+    tensorboard_dir: Path = Settings.PROJECT_PATH / "runs",
     best_vloss: float = float("inf"),
     starting_epoch: int = 0,
     early_stop: EarlyStop = None,
@@ -80,7 +81,7 @@ def train_model(
         early_stop.min_validation_loss = best_vloss
     checkpoint_dir_path = checkpoint_dir / experiment_name
     checkpoint_dir_path.mkdir(parents=True, exist_ok=True)
-    tb_writer = SummaryWriter(str(Settings.PROJECT_PATH / "runs" / experiment_name))
+    tb_writer = SummaryWriter(str(tensorboard_dir / experiment_name))
 
     for epoch in range(starting_epoch + 1, epochs + 1):
         # Make sure gradient tracking is on, and do a pass over the data

@@ -36,8 +36,11 @@ class ProcessedChessDataset(Dataset):
         self.num_moves = 0
         self.loaded_data = None
 
-        self.meta_info_path = folder_path / "cache" / meta_filename
-        self.moves_path = folder_path / "cache" / moves_filename
+        cache_path = folder_path / "cache"
+        cache_path.mkdir(parents=True, exist_ok=True)
+        
+        self.meta_info_path = cache_path / meta_filename
+        self.moves_path = cache_path / moves_filename
         if self.meta_info_path.exists():
             with open(self.meta_info_path) as fp:
                 metadata = json.load(fp)
