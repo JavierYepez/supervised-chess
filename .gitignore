@@ -165,5 +165,5 @@ cython_debug/
 # Dirs
 runs/
 data/
-models/
+models/*
 .DS_Store
