@@ -158,3 +158,8 @@ def load_checkpoint(
     model.load_state_dict(checkpoint["state_dict"])
     optimizer.load_state_dict(checkpoint["optimizer"])
     return checkpoint["epoch"], checkpoint["train_loss"], checkpoint["experiment_name"]
+
+
+def export_model(model: Module, model_export_path: Path):
+    scripted_model = torch.jit.script(model)
+    scripted_model.save(model_export_path)
