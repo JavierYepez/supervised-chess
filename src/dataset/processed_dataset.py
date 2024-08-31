@@ -100,7 +100,7 @@ class ProcessedChessDataset(Dataset):
     def __getitem__(self, idx) -> Tuple[Tensor, Tensor]:
 
         if self.loaded_data:
-            return self.loaded_data[0][idx].float(), self.loaded_data[1][idx].float()
+            return self.loaded_data[0][idx].float(), (self.loaded_data[1][idx][0].float(), self.loaded_data[1][idx][1].float())
 
         nbytes = self.X_nbytes + self.y_nbytes
 
@@ -112,6 +112,7 @@ class ProcessedChessDataset(Dataset):
         y = np.frombuffer(buffer[self.X_nbytes:], np.int8).reshape(self.y_shape).copy()
 
         X, y = torch.from_numpy(X).float(), torch.from_numpy(y).float()
+        y = (y[:64], y[64:])
 
         return X, y
     
@@ -131,6 +132,7 @@ class ProcessedChessDataset(Dataset):
             while buffer := moves_fp.read(nbytes):
                 X = torch.frombuffer(buffer[:self.X_nbytes], dtype=torch.int8).view(self.X_shape)
                 y = torch.frombuffer(buffer[self.X_nbytes:], dtype=torch.int8).view(self.y_shape)
+                y = (y[:64], y[64:])
 
                 X_list.append(X)
                 y_list.append(y)

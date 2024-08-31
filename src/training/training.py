@@ -33,7 +33,7 @@ def train_one_epoch(
         desc=f"Training Epoch {epoch_index}",
     ):
         # Every data instance is an input + label pair
-        inputs, labels = data[0].to(device), data[1].to(device)
+        inputs, labels = data[0].to(device), (data[1][0].to(device), data[1][1].to(device))
 
         # Zero your gradients for every batch!
         optimizer.zero_grad()
@@ -42,8 +42,9 @@ def train_one_epoch(
         outputs = model(inputs)
 
         # Compute the loss and its gradients
-        loss = loss_fn(outputs, labels)
-        loss.backward()
+        for output, label in zip(outputs, labels):
+            loss = loss_fn(output, label)
+            loss.backward(retain_graph=True)
 
         # Adjust learning weights
         optimizer.step()
@@ -103,10 +104,11 @@ def train_model(
                 desc="Calculating vloss",
                 leave=False,
             ):
-                vinputs, vlabels = vdata[0].to(device), vdata[1].to(device)
+                vinputs, vlabels = vdata[0].to(device), ((vdata[1][0].to(device), vdata[1][1].to(device)))
                 voutputs = model(vinputs)
-                vloss = loss_fn(voutputs, vlabels)
-                running_vloss += vloss
+                for voutput, vlabel in zip(voutputs, vlabels):
+                    vloss = loss_fn(voutput, vlabel)
+                    running_vloss += vloss
 
         avg_vloss = running_vloss / (i + 1)
         print("LOSS train {} valid {}".format(avg_loss, avg_vloss))

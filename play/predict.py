@@ -37,10 +37,8 @@ def board_to_matrix(board: Board) -> torch.Tensor:
 
 
 def decode_output(output_tensor: torch.Tensor, board: Board) -> Move:
-    tensor = output_tensor.squeeze(0)
-
-    from_square_list = torch.argsort(torch.softmax(tensor[:64], dim=0), descending=True)
-    to_square_list = torch.argsort(torch.softmax(tensor[64:], dim=0), descending=True)
+    from_square_list = torch.argsort(torch.softmax(output_tensor[0].squeeze(0), dim=0), descending=True)
+    to_square_list = torch.argsort(torch.softmax(output_tensor[1].squeeze(0), dim=0), descending=True)
 
     for from_square in from_square_list:
         piece = board.piece_at(from_square)

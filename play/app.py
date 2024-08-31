@@ -9,12 +9,12 @@ from pydantic import BaseModel
 from .predict import load_model, predict_next_move
 
 
-model = load_model(Path("static/models/chess_white_14dim_run_20240826_1443.pth"))
+model = load_model(Path("static/models/chess_white_splitoutput.pth"))
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Load the ML model
-    model = load_model(Path("static/models/chess_white_14dim_run_20240826_1443.pth"))
+    model = load_model(Path("static/models/chess_white_splitoutput.pth"))
     yield
     del model
 
