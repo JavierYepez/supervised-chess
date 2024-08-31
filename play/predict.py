@@ -65,7 +65,7 @@ def check_one_move_checkmate(board: Board):
         checkmate_board.pop()
 
 
-def predict_next_move(fen_board: str, model: torch.nn.Module) -> Move:
+def predict_next_move(fen_board: str, model: torch.nn.Module) -> str:
 
     board = Board(fen=fen_board)
     if check_mate_board := check_one_move_checkmate(board):
