@@ -2,12 +2,13 @@ import json
 from pathlib import Path
 from typing import Callable, List, Tuple
 from chess import Board, Move, pgn
-import numpy as np
 import psutil
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
+import operator
+import functools
 
 from src.utils import (
     get_num_matches_from_pgn,
@@ -49,6 +50,9 @@ class ProcessedChessDataset(Dataset):
             self.y_shape = tuple(metadata["y_shape"])
             self.X_nbytes = metadata["X_nbytes"]
             self.y_nbytes = metadata["y_nbytes"]
+            self._X_size = functools.reduce(operator.mul, self.X_shape, 1)
+            self._y_size = functools.reduce(operator.mul, self.y_shape, 1)
+            self._sample_size = self._X_size + self._y_size
 
             self.loaded_data = self.load_in_memory()
             return
@@ -99,8 +103,8 @@ class ProcessedChessDataset(Dataset):
 
     def __getitem__(self, idx) -> Tuple[Tensor, Tensor]:
 
-        if self.loaded_data:
-            return self.loaded_data[0][idx].float(), (self.loaded_data[1][idx][0].float(), self.loaded_data[1][idx][1].float())
+        if self.loaded_data is not None:
+            return self.decode_tensor(idx)
 
         nbytes = self.X_nbytes + self.y_nbytes
 
@@ -108,13 +112,21 @@ class ProcessedChessDataset(Dataset):
             moves_fp.seek(nbytes * idx)
             buffer = moves_fp.read(nbytes)
 
-        X = np.frombuffer(buffer[:self.X_nbytes], np.int8).reshape(self.X_shape).copy()
-        y = np.frombuffer(buffer[self.X_nbytes:], np.int8).reshape(self.y_shape).copy()
-
-        X, y = torch.from_numpy(X).float(), torch.from_numpy(y).float()
+        X = torch.frombuffer(buffer[:self.X_nbytes], torch.int8).view(self.X_shape).float()
+        y = torch.frombuffer(buffer[self.X_nbytes:], torch.int8).view(self.y_shape).float()
         y = (y[:64], y[64:])
 
         return X, y
+    
+    def decode_tensor(self, index):
+        start = index * self._sample_size
+        end = start + self._sample_size
+        sample: torch.Tensor = self.loaded_data[start:end]
+
+        X = sample[:-self._y_size].view(self.X_shape).float()
+        y = sample[-self._y_size:].view(self.y_shape).float()
+
+        return X, (y[:64], y[64:])
     
     def load_in_memory(self) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
 
@@ -123,17 +135,8 @@ class ProcessedChessDataset(Dataset):
 
         if self.moves_path.stat().st_size >= memory:
             return None
-        
-        X_list, y_list = [], []
-
-        nbytes = self.X_nbytes + self.y_nbytes
+    
         with open(self.moves_path, 'rb') as moves_fp:
-
-            while buffer := moves_fp.read(nbytes):
-                X = torch.frombuffer(buffer[:self.X_nbytes], dtype=torch.int8).view(self.X_shape)
-                y = torch.frombuffer(buffer[self.X_nbytes:], dtype=torch.int8).view(self.y_shape)
-                y = (y[:64], y[64:])
-
-                X_list.append(X)
-                y_list.append(y)
-        return X_list, y_list
+            buffer = moves_fp.read()
+            ds = torch.frombuffer(buffer, dtype=torch.int8)
+        return ds

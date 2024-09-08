@@ -11,6 +11,16 @@ from tqdm.auto import tqdm
 from .early_stop import EarlyStop
 from ..settings import Settings
 
+def to_device(inputs, outputs, device: DeviceLikeType) -> Tuple:
+    device_in = inputs.to(device) if type(inputs) == torch.Tensor else None
+    if device_in is None:
+        device_in = (inp.to(device) for inp in inputs)
+
+    device_out = outputs.to(device) if type(outputs) == torch.Tensor else None
+    if device_out is None:
+        device_out = (out.to(device) for out in outputs)
+
+    return device_in, device_out
 
 def train_one_epoch(
     training_loader: DataLoader,
@@ -33,7 +43,8 @@ def train_one_epoch(
         desc=f"Training Epoch {epoch_index}",
     ):
         # Every data instance is an input + label pair
-        inputs, labels = data[0].to(device), (data[1][0].to(device), data[1][1].to(device))
+        inputs, labels = data
+        inputs, labels = to_device(inputs, labels, device)
 
         # Zero your gradients for every batch!
         optimizer.zero_grad()
@@ -42,9 +53,13 @@ def train_one_epoch(
         outputs = model(inputs)
 
         # Compute the loss and its gradients
-        for output, label in zip(outputs, labels):
-            loss = loss_fn(output, label)
-            loss.backward(retain_graph=True)
+        if type(labels) == torch.Tensor:
+            loss = loss_fn(outputs, labels)
+            loss.backward()
+        else:
+            for output, label in zip(outputs, labels):
+                loss = loss_fn(output, label)
+                loss.backward(retain_graph=True)
 
         # Adjust learning weights
         optimizer.step()
@@ -104,11 +119,17 @@ def train_model(
                 desc="Calculating vloss",
                 leave=False,
             ):
-                vinputs, vlabels = vdata[0].to(device), ((vdata[1][0].to(device), vdata[1][1].to(device)))
+                vinputs, vlabels = vdata
+                vinputs, vlabels = to_device(vinputs, vlabels, device)
+
                 voutputs = model(vinputs)
-                for voutput, vlabel in zip(voutputs, vlabels):
-                    vloss = loss_fn(voutput, vlabel)
+                if type(vlabels) == torch.Tensor:
+                    vloss = loss_fn(voutputs, vlabels)
                     running_vloss += vloss
+                else:
+                    for voutput, vlabel in zip(voutputs, vlabels):
+                        vloss = loss_fn(voutput, vlabel)
+                        running_vloss += vloss
 
         avg_vloss = running_vloss / (i + 1)
         print("LOSS train {} valid {}".format(avg_loss, avg_vloss))
